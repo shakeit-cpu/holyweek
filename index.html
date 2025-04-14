@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>고난주간 출석 체크</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: linear-gradient(to bottom, #fceabb, #f8b500);
+      text-align: center;
+      padding: 2rem;
+    }
+    h1 {
+      color: #722f37;
+    }
+    input, button {
+      padding: 0.8rem;
+      margin: 0.5rem;
+      font-size: 1.2rem;
+      border-radius: 8px;
+      border: none;
+    }
+    #message {
+      margin-top: 1rem;
+      font-weight: bold;
+      font-size: 1.3rem;
+    }
+    .admin {
+      margin-top: 2rem;
+    }
+    .hidden {
+      display: none;
+    }
+    .fade-in {
+      animation: fadein 0.6s;
+    }
+    @keyframes fadein {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <h1>✝ 고난주간 출석 체크 ✝</h1>
+  <input type="text" id="name" placeholder="이름을 입력하세요" />
+  <button onclick="checkIn()">출석하기</button>
+  <div id="message"></div>
+
+  <div class="admin">
+    <button onclick="toggleAdmin()">관리자 메뉴</button>
+    <div id="adminPanel" class="hidden">
+      <input type="password" id="adminPassword" placeholder="관리자 비밀번호" />
+      <button onclick="checkAdmin()">접속</button>
+      <div id="adminControls" class="hidden">
+        <button onclick="resetAttendance()">출석 초기화</button>
+        <br/><br/>
+        <a href="https://docs.google.com/spreadsheets/d/1w7kirCRqjUAE0axCMxqZwzpF1NHrhX_83maPobFAe34/edit" target="_blank">
+          출석 기록 스프레드시트 보기
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'attendanceData';
+    const PASSWORD = 'didwotjd12'; // 관리자 비밀번호
+    const SHEET_API = 'https://script.google.com/macros/s/AKfycbyG3vnEQ10Uml9VCYbCwbJDWe2QpOF7DFOLv7Kc5HvqTSua6n0etfmEwGnAPsMCU5Bb7w/exec';
+
+    function getToday() {
+      const d = new Date();
+      return d.toISOString().slice(0, 10);
+    }
+
+    function getAttendance() {
+      const data = localStorage.getItem(STORAGE_KEY);
+      return data ? JSON.parse(data) : {};
+    }
+
+    function saveAttendance(data) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+
+    function showMessage(msg, success = true) {
+      const msgBox = document.getElementById('message');
+      msgBox.innerText = msg;
+      msgBox.style.color = success ? 'green' : 'red';
+      msgBox.classList.add('fade-in');
+      setTimeout(() => msgBox.classList.remove('fade-in'), 500);
+    }
+
+    async function saveToSheet(name) {
+      try {
+        await fetch(SHEET_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name })
+        });
+      } catch (e) {
+        console.error('스프레드시트 저장 실패:', e);
+      }
+    }
+
+    function checkIn() {
+      const name = document.getElementById('name').value.trim();
+      if (!name) return showMessage('이름을 입력하세요', false);
+
+      const today = getToday();
+      const data = getAttendance();
+
+      if (data[today]?.[name]) {
+        showMessage(`${name}님은 이미 출석했습니다 (${data[today][name]})`, false);
+        return;
+      }
+
+      const now = new Date().toLocaleTimeString();
+      if (!data[today]) data[today] = {};
+      data[today][name] = now;
+      saveAttendance(data);
+
+      showMessage(`할렐루야! ${name}님, 출석 완료 ✅`);
+      saveToSheet(name);
+    }
+
+    function toggleAdmin() {
+      document.getElementById('adminPanel').classList.toggle('hidden');
+    }
+
+    function checkAdmin() {
+      const input = document.getElementById('adminPassword').value;
+      if (input === PASSWORD) {
+        document.getElementById('adminControls').classList.remove('hidden');
+        showMessage('관리자 모드 접속 완료 ✅');
+      } else {
+        showMessage('비밀번호가 틀렸습니다', false);
+      }
+    }
+
+    function resetAttendance() {
+      if (confirm('정말 모든 출석 기록을 초기화할까요?')) {
+        localStorage.removeItem(STORAGE_KEY);
+        showMessage('모든 출석 기록이 초기화되었습니다');
+      }
+    }
+  </script>
+</body>
+</html>
