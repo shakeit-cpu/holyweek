@@ -50,6 +50,10 @@
     .message-error {
       color: red;
     }
+    #attendance-count {
+      margin-top: 20px;
+      font-size: 20px;
+    }
   </style>
 </head>
 <body>
@@ -59,17 +63,33 @@
     <button id="submit-btn">출석 체크</button>
     <div class="message" id="success-message">할렐루야!</div>
     <div class="message message-error" id="error-message">출석 체크에 실패했습니다. 다시 시도해 주세요.</div>
+    <div id="attendance-count">출석자 수: <span id="count">0</span></div>
   </div>
 
   <script>
-    const SHEET_API = 'https://script.google.com/macros/s/AKfycbyG3vnEQ10Uml9VCYbCwbJDWe2QpOF7DFOLv7Kc5HvqTSua6n0etfmEwGnAPsMCU5Bb7w/exec';  // 웹 앱 URL을 여기에 넣어주세요!
+    const SHEET_API = 'YOUR_WEB_APP_URL';  // 웹 앱 URL을 여기에 넣어주세요!
+    let attendanceData = [];  // 출석 데이터 저장 (메모리 상에서만 사용)
 
+    // 출석 체크 및 저장
     async function saveToSheet(name) {
       try {
+        // 중복 출석 확인
+        if (attendanceData.includes(name)) {
+          const existingTime = attendanceData[name];
+          alert(`이미 출석하셨습니다! 출석 시간: ${existingTime}`);
+          return;
+        }
+
+        // 출석 기록 추가
+        const timestamp = new Date();
+        const date = timestamp.toISOString().split('T')[0];
+        const time = timestamp.toISOString().split('T')[1].split('.')[0];
+        
+        // API에 출석 데이터 전송
         const response = await fetch(SHEET_API, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name })
+          body: JSON.stringify({ name, date, time })
         });
 
         if (!response.ok) {
@@ -78,11 +98,21 @@
         } else {
           document.getElementById('success-message').style.display = 'block';
           document.getElementById('error-message').style.display = 'none';
+          
+          // 출석 데이터 업데이트
+          attendanceData[name] = time;
+          updateAttendanceCount();
         }
       } catch (e) {
         console.error('스프레드시트 저장 실패:', e);
         document.getElementById('error-message').style.display = 'block';
       }
+    }
+
+    // 출석자 수 업데이트
+    function updateAttendanceCount() {
+      const count = Object.keys(attendanceData).length;
+      document.getElementById('count').textContent = count;
     }
 
     document.getElementById('submit-btn').addEventListener('click', function () {
