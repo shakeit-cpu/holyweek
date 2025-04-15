@@ -100,7 +100,7 @@
   </div>
 
   <script>
-    const sheetUrl = 'https://script.google.com/macros/s/AKfycbyG3vnEQ10Uml9VCYbCwbJDWe2QpOF7DFOLv7Kc5HvqTSua6n0etfmEwGnAPsMCU5Bb7w/exec';
+    const sheetUrl = 'https://docs.google.com/spreadsheets/d/1w7kirCRqjUAE0axCMxqZwzpF1NHrhX_83maPobFAe34/edit?gid=0#gid=0';
     const localKey = new Date().toISOString().split('T')[0];
     let attendance = JSON.parse(localStorage.getItem(localKey)) || {};
 
@@ -138,7 +138,7 @@
 
     function loadData() {
       const pass = document.getElementById("adminPass").value;
-      if (pass !== "pass1234") return alert("비밀번호가 틀렸습니다.");
+      if (pass !== "didwotjd12") return alert("비밀번호가 틀렸습니다.");
 
       fetch(sheetUrl + "?view=1")
         .then(res => res.json())
