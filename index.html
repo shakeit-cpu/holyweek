@@ -1,128 +1,166 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>출석 체크</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>고난주간 출석체크</title>
   <style>
     body {
-      font-family: 'Arial', sans-serif;
+      font-family: 'Apple SD Gothic Neo', sans-serif;
+      background: linear-gradient(to bottom, #e8d9c4, #f6f2ec);
       text-align: center;
-      background-color: #f0f4f8;
       padding: 20px;
+      color: #333;
     }
     .container {
-      margin-top: 50px;
-      background-color: #ffffff;
-      padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
       max-width: 400px;
-      margin: 0 auto;
+      margin: auto;
+      background: white;
+      padding: 30px;
+      border-radius: 20px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+      color: #8b0000;
     }
     input[type="text"] {
-      padding: 10px;
-      font-size: 16px;
       width: 80%;
-      margin-bottom: 20px;
-      border: 1px solid #ddd;
-      border-radius: 5px;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #aaa;
+      border-radius: 10px;
+      font-size: 16px;
     }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #4CAF50;
+      background: #8b0000;
       color: white;
       border: none;
-      border-radius: 5px;
+      padding: 12px 20px;
+      font-size: 16px;
+      border-radius: 10px;
       cursor: pointer;
-      transition: background-color 0.3s;
+      margin-top: 10px;
     }
     button:hover {
-      background-color: #45a049;
+      background: #a31515;
     }
     .message {
-      font-size: 20px;
-      color: #4CAF50;
+      margin-top: 15px;
+      font-size: 18px;
+      color: green;
+      display: none;
+    }
+    .duplicate {
+      color: #b22222;
+    }
+    #count {
+      font-weight: bold;
+      font-size: 18px;
+      margin-top: 15px;
+    }
+    #admin-menu {
+      margin-top: 20px;
+      font-size: 14px;
+      text-decoration: underline;
+      color: #444;
+      cursor: pointer;
+    }
+    #admin-panel {
       margin-top: 20px;
       display: none;
     }
-    .message-error {
-      color: red;
-    }
-    #attendance-count {
-      margin-top: 20px;
-      font-size: 20px;
+    textarea {
+      width: 100%;
+      height: 150px;
+      margin-top: 10px;
+      padding: 10px;
     }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>출석 체크</h2>
-    <input type="text" id="name" placeholder="이름을 입력하세요" />
-    <button id="submit-btn">출석 체크</button>
-    <div class="message" id="success-message">할렐루야!</div>
-    <div class="message message-error" id="error-message">출석 체크에 실패했습니다. 다시 시도해 주세요.</div>
-    <div id="attendance-count">출석자 수: <span id="count">0</span></div>
+    <h1>고난주간 출석체크</h1>
+    <input type="text" id="nameInput" placeholder="이름을 입력하세요" />
+    <button onclick="checkAttendance()">출석하기</button>
+    <div class="message" id="successMsg">할렐루야! 출석이 완료되었습니다 🙏</div>
+    <div class="message duplicate" id="duplicateMsg"></div>
+    <div id="count">출석자 수: 0명</div>
+    <div id="admin-menu" onclick="toggleAdminPanel()">📋 관리자 메뉴</div>
+
+    <div id="admin-panel">
+      <input type="password" id="adminPass" placeholder="관리자 비밀번호" />
+      <button onclick="loadData()">출석기록 보기</button>
+      <button onclick="resetAttendance()">출석 초기화</button>
+      <textarea id="adminData" readonly></textarea>
+    </div>
   </div>
 
   <script>
-    const SHEET_API = 'https://script.google.com/macros/s/AKfycbyG3vnEQ10Uml9VCYbCwbJDWe2QpOF7DFOLv7Kc5HvqTSua6n0etfmEwGnAPsMCU5Bb7w/exec';  // 웹 앱 URL을 여기에 넣어주세요!
-    let attendanceData = [];  // 출석 데이터 저장 (메모리 상에서만 사용)
+    const sheetUrl = 'https://script.google.com/macros/s/AKfycbyG3vnEQ10Uml9VCYbCwbJDWe2QpOF7DFOLv7Kc5HvqTSua6n0etfmEwGnAPsMCU5Bb7w/exec';
+    const localKey = new Date().toISOString().split('T')[0]; // 오늘 날짜
+    let attendance = JSON.parse(localStorage.getItem(localKey)) || {};
 
-    // 출석 체크 및 저장
-    async function saveToSheet(name) {
-      try {
-        // 중복 출석 확인
-        if (attendanceData.includes(name)) {
-          const existingTime = attendanceData[name];
-          alert(`이미 출석하셨습니다! 출석 시간: ${existingTime}`);
-          return;
-        }
+    document.getElementById("count").innerText = `출석자 수: ${Object.keys(attendance).length}명`;
 
-        // 출석 기록 추가
-        const timestamp = new Date();
-        const date = timestamp.toISOString().split('T')[0];
-        const time = timestamp.toISOString().split('T')[1].split('.')[0];
-        
-        // API에 출석 데이터 전송
-        const response = await fetch(SHEET_API, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name, date, time })
-        });
-
-        if (!response.ok) {
-          console.error('Failed to save data:', response.status);
-          document.getElementById('error-message').style.display = 'block';
-        } else {
-          document.getElementById('success-message').style.display = 'block';
-          document.getElementById('error-message').style.display = 'none';
-          
-          // 출석 데이터 업데이트
-          attendanceData[name] = time;
-          updateAttendanceCount();
-        }
-      } catch (e) {
-        console.error('스프레드시트 저장 실패:', e);
-        document.getElementById('error-message').style.display = 'block';
-      }
-    }
-
-    // 출석자 수 업데이트
-    function updateAttendanceCount() {
-      const count = Object.keys(attendanceData).length;
-      document.getElementById('count').textContent = count;
-    }
-
-    document.getElementById('submit-btn').addEventListener('click', function () {
-      const name = document.getElementById('name').value.trim();
-      if (name) {
-        saveToSheet(name);
-      } else {
+    function checkAttendance() {
+      const name = document.getElementById("nameInput").value.trim();
+      if (!name) {
         alert("이름을 입력해주세요.");
+        return;
       }
-    });
+
+      if (attendance[name]) {
+        document.getElementById("duplicateMsg").innerText = `이미 출석하셨습니다! (${attendance[name]})`;
+        document.getElementById("duplicateMsg").style.display = 'block';
+        document.getElementById("successMsg").style.display = 'none';
+        return;
+      }
+
+      const now = new Date();
+      const time = now.toLocaleTimeString();
+      attendance[name] = time;
+      localStorage.setItem(localKey, JSON.stringify(attendance));
+      document.getElementById("successMsg").style.display = 'block';
+      document.getElementById("duplicateMsg").style.display = 'none';
+      document.getElementById("count").innerText = `출석자 수: ${Object.keys(attendance).length}명`;
+
+      // 서버에 저장
+      fetch(sheetUrl, {
+        method: "POST",
+        body: JSON.stringify({ name: name, date: localKey, time: time }),
+        headers: { "Content-Type": "application/json" }
+      }).then(res => res.text()).then(console.log).catch(console.error);
+    }
+
+    function toggleAdminPanel() {
+      const panel = document.getElementById("admin-panel");
+      panel.style.display = (panel.style.display === "none") ? "block" : "none";
+    }
+
+    function loadData() {
+      const pass = document.getElementById("adminPass").value;
+      if (pass !== "pass1234") {
+        alert("비밀번호가 틀렸습니다.");
+        return;
+      }
+
+      fetch(sheetUrl + "?view=1")
+        .then(res => res.json())
+        .then(data => {
+          let text = data.map(row => `${row.date} ${row.time} - ${row.name}`).join("\n");
+          document.getElementById("adminData").value = text;
+        });
+    }
+
+    function resetAttendance() {
+      if (!confirm("정말로 출석 기록을 초기화하시겠습니까?")) return;
+      attendance = {};
+      localStorage.setItem(localKey, JSON.stringify(attendance));
+      document.getElementById("count").innerText = `출석자 수: 0명`;
+      alert("출석 기록이 초기화되었습니다.");
+    }
   </script>
 </body>
 </html>
