@@ -25,7 +25,7 @@
       margin-bottom: 20px;
       color: #8b0000;
     }
-    input[type="text"] {
+    input[type="text"], input[type="password"] {
       width: 80%;
       padding: 10px;
       margin: 10px 0;
@@ -41,7 +41,7 @@
       font-size: 16px;
       border-radius: 10px;
       cursor: pointer;
-      margin-top: 10px;
+      margin: 5px;
     }
     button:hover {
       background: #a31515;
@@ -91,47 +91,44 @@
 
     <div id="admin-panel">
       <input type="password" id="adminPass" placeholder="관리자 비밀번호" />
+      <br/>
       <button onclick="loadData()">출석기록 보기</button>
       <button onclick="resetAttendance()">출석 초기화</button>
+      <button onclick="window.open('https://docs.google.com/spreadsheets/d/1w7kirCRqjUAE0axCMxqZwzpF1NHrhX_83maPobFAe34/edit', '_blank')">스프레드시트 열기</button>
       <textarea id="adminData" readonly></textarea>
     </div>
   </div>
 
   <script>
     const sheetUrl = 'https://script.google.com/macros/s/AKfycbyG3vnEQ10Uml9VCYbCwbJDWe2QpOF7DFOLv7Kc5HvqTSua6n0etfmEwGnAPsMCU5Bb7w/exec';
-    const localKey = new Date().toISOString().split('T')[0]; // 오늘 날짜
+    const localKey = new Date().toISOString().split('T')[0];
     let attendance = JSON.parse(localStorage.getItem(localKey)) || {};
 
     document.getElementById("count").innerText = `출석자 수: ${Object.keys(attendance).length}명`;
 
     function checkAttendance() {
       const name = document.getElementById("nameInput").value.trim();
-      if (!name) {
-        alert("이름을 입력해주세요.");
-        return;
-      }
+      if (!name) return alert("이름을 입력해주세요.");
 
       if (attendance[name]) {
-        document.getElementById("duplicateMsg").innerText = `이미 출석하셨습니다! (${attendance[name]})`;
+        document.getElementById("duplicateMsg").innerText = `이미 출석하셨습니다 (${attendance[name]})`;
         document.getElementById("duplicateMsg").style.display = 'block';
         document.getElementById("successMsg").style.display = 'none';
         return;
       }
 
-      const now = new Date();
-      const time = now.toLocaleTimeString();
+      const time = new Date().toLocaleTimeString();
       attendance[name] = time;
       localStorage.setItem(localKey, JSON.stringify(attendance));
+      document.getElementById("count").innerText = `출석자 수: ${Object.keys(attendance).length}명`;
       document.getElementById("successMsg").style.display = 'block';
       document.getElementById("duplicateMsg").style.display = 'none';
-      document.getElementById("count").innerText = `출석자 수: ${Object.keys(attendance).length}명`;
 
-      // 서버에 저장
       fetch(sheetUrl, {
         method: "POST",
-        body: JSON.stringify({ name: name, date: localKey, time: time }),
+        body: JSON.stringify({ name, date: localKey, time }),
         headers: { "Content-Type": "application/json" }
-      }).then(res => res.text()).then(console.log).catch(console.error);
+      }).then(r => r.text()).then(console.log).catch(console.error);
     }
 
     function toggleAdminPanel() {
@@ -141,25 +138,25 @@
 
     function loadData() {
       const pass = document.getElementById("adminPass").value;
-      if (pass !== "pass1234") {
-        alert("비밀번호가 틀렸습니다.");
-        return;
-      }
+      if (pass !== "pass1234") return alert("비밀번호가 틀렸습니다.");
 
       fetch(sheetUrl + "?view=1")
         .then(res => res.json())
         .then(data => {
-          let text = data.map(row => `${row.date} ${row.time} - ${row.name}`).join("\n");
+          const text = data.map(r => `${r.date} ${r.time} - ${r.name}`).join("\n");
           document.getElementById("adminData").value = text;
+        }).catch(err => {
+          alert("출석 기록을 불러올 수 없습니다.");
+          console.error(err);
         });
     }
 
     function resetAttendance() {
-      if (!confirm("정말로 출석 기록을 초기화하시겠습니까?")) return;
+      if (!confirm("정말로 출석기록을 초기화하시겠습니까?")) return;
       attendance = {};
       localStorage.setItem(localKey, JSON.stringify(attendance));
-      document.getElementById("count").innerText = `출석자 수: 0명`;
-      alert("출석 기록이 초기화되었습니다.");
+      document.getElementById("count").innerText = "출석자 수: 0명";
+      alert("출석기록이 초기화되었습니다.");
     }
   </script>
 </body>
